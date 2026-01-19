@@ -1,0 +1,59 @@
+Tech contents - 
+
+🌐 Backend Frameworks
+
+Spring Boot — Java framework for building production-ready REST services quickly.
+Flask — Lightweight Python web framework for APIs and microservices.
+
+🖥️ Frontend Frameworks
+
+Angular — TypeScript-based frontend framework for building single-page applications.
+React — JavaScript library for building component-based user interfaces.
+
+☁️ Cloud & Infrastructure
+
+AWS EC2 — Virtual servers for running applications in the cloud.
+AWS RDS — Managed relational database service.
+AWS S3 — Scalable object storage service.
+
+🐳 Containers & Orchestration
+
+Docker — Platform for packaging applications and dependencies into containers.
+Kubernetes — System for deploying, scaling, and managing containerized applications.
+
+🏗️ Infrastructure & DevOps
+
+Terraform — Infrastructure-as-code tool for provisioning cloud resources declaratively.
+Jenkins — Automation server used for CI/CD pipelines.
+
+📊 Monitoring & Observability
+
+Prometheus — Time-series monitoring system for collecting metrics.
+Grafana — Visualization tool for metrics and dashboards.
+Splunk — Log aggregation and search platform for production monitoring.
+
+🔁 Messaging & Streaming
+
+RabbitMQ — Message broker for asynchronous communication between services.
+
+🧠 Caching & In-Memory Stores
+
+Redis — In-memory key-value store used for caching and fast data access.
+Hazelcast — Distributed in-memory data grid commonly used in Java ecosystems.
+
+🗄️ Databases
+
+IBM DB2 — Enterprise-grade relational database optimized for transactional workloads.
+PostgreSQL — Open-source relational database with strong consistency and extensibility.
+MySQL — Popular open-source relational database.
+MongoDB — NoSQL document database for flexible schema storage.
+
+🧪 Testing & Development Tools
+
+JUnit — Unit testing framework for Java applications.
+Postman — Tool for testing and debugging REST APIs.
+
+🔧 Build & Version Control
+
+Maven — Build and dependency management tool for Java projects.
+Git — Distributed version control system for source code manageme
