@@ -1,3 +1,163 @@
+/*
+======================== LLD DESIGN INTERVIEW SCRIPT (SPRINT PLANNER / JIRA-LITE) ========================
+
+------------------------------------------------------------------------------------------
+1) CLARIFYING REQUIREMENTS (what I ask first)
+------------------------------------------------------------------------------------------
+"Before I design, I want to confirm the scope and rules for this sprint planning system."
+
+Questions I ask:
+1. Main features required in MVP?
+   - Create sprint ✅
+   - Add/remove tasks in sprint ✅
+   - Assign tasks to users ✅
+   - Move task status (TODO / INPROGRESS / DONE) ✅
+   - View tasks assigned to a user ✅
+   - Track delayed tasks ✅
+2. Capacity constraints:
+   - Max tasks per sprint? ✅ (20 in this design)
+   - Max INPROGRESS tasks per user? ✅ (2 here)
+3. Task transitions:
+   - Allowed transitions? (TODO <-> INPROGRESS, INPROGRESS -> DONE ✅)
+   - Should TODO -> DONE directly be allowed? ❌ (not allowed here)
+4. Time tracking:
+   - Task has start and end time ✅
+   - Delay = endTime < now ✅
+   - Sprint has start and end time ✅
+5. Multi-sprint support needed? (not implemented: only one sprint in main demo)
+6. Concurrency:
+   - Multiple users updating tasks simultaneously? ✅ (basic synchronization is used)
+
+Assumptions in this implementation:
+- In-memory only
+- One sprint object handles task operations
+- Task identity is object reference (no taskId)
+- No persistence, no audit logs, no comments, no priority/story points
+
+------------------------------------------------------------------------------------------
+2) REQUIREMENTS
+------------------------------------------------------------------------------------------
+Functional Requirements:
+- Create Sprint with goal + startTime + endTime
+- Add tasks to sprint (limit 20)
+- Remove tasks from sprint
+- View tasks assigned to a specific user
+- Change task status with valid workflow rules
+- Enforce per-user INPROGRESS limit (max 2)
+- View delayed tasks
+
+Non-Functional Requirements:
+- Thread safety for sprint operations
+- Maintainability: clear separation of Task and Sprint logic
+- Extensible: add priorities, story points, labels, dependencies
+
+------------------------------------------------------------------------------------------
+3) IDENTIFY ENTITIES (core classes)
+------------------------------------------------------------------------------------------
+User
+Task
+Sprint
+
+Enums:
+TaskType (STORY, FEATURE, BUG)
+TaskStatus (TODO, INPROGRESS, DONE)
+
+SprintPlanner (driver class here)
+
+------------------------------------------------------------------------------------------
+4) RELATIONSHIPS (has-a / is-a)
+------------------------------------------------------------------------------------------
+Sprint has:
+- List<Task> tasks
+- Map<User, List<Task>> userTasks (reverse index)
+
+Task has:
+- assignedUser
+- taskType
+- taskStatus
+- startTime/endTime
+
+User is uniquely represented by userDetails string
+(Note: in real design we’d have userId, equals/hashCode)
+
+------------------------------------------------------------------------------------------
+5) DESIGN CHOICES / PATTERNS DISCUSSED
+------------------------------------------------------------------------------------------
+Encapsulation of rules inside Task:
+- Task.changeStatus() enforces valid transitions
+
+Sprint-level business rules:
+- Sprint enforces MAX_SPRINT_CAPACITY
+- Sprint enforces MAX_INPROGRESS_TASKS per user
+
+Thread safety:
+- tasks list is synchronizedList
+- userTasks map is ConcurrentHashMap
+- key modifying methods are synchronized (add/remove/change status)
+
+Indexing:
+- userTasks map makes it fast to get tasks assigned to a user
+  instead of scanning entire sprint each time
+
+------------------------------------------------------------------------------------------
+6) CORE APIs (entry points)
+------------------------------------------------------------------------------------------
+Sprint:
+- addTask(task) -> boolean
+- removeTask(task) -> boolean
+- showTasksAssigned(user) -> List<Task>
+- changeTaskStatus(task, newStatus) -> boolean
+- getDelayedTasks() -> List<Task>
+
+Task:
+- changeStatus(newStatus) -> boolean
+- isDelayed() -> boolean
+
+------------------------------------------------------------------------------------------
+7) EDGE CASES I DISCUSS (and handled here)
+------------------------------------------------------------------------------------------
+- Adding task when sprint is full -> false ✅
+- Removing non-existing task -> false ✅
+- Changing status for task not in sprint -> false ✅
+- Invalid transition (TODO -> DONE directly) -> false ✅
+- User exceeding INPROGRESS limit -> false ✅
+- Delayed tasks computed using endTime < current time ✅
+
+Limitations to mention:
+- User class has no equals/hashCode:
+  - Using User objects as map keys may break if different User objects represent same person ❌
+- Task has no taskId:
+  - removing tasks depends on object reference equality ❌
+- No concept of sprint backlog vs sprint tasks
+- No validation that task endTime is within sprint endTime
+
+------------------------------------------------------------------------------------------
+8) EXTENSIBILITY (what can be added next)
+------------------------------------------------------------------------------------------
+- Add taskId + sprintId (UUID)
+- Add story points, priority, labels
+- Add task dependencies (blocked-by)
+- Add comments, activity logs, status history
+- Add multiple sprints + planner service layer
+- Add user identity system (userId based equals/hashCode)
+- Add filtering: showTasksByStatus, showTasksByType
+- Add burndown metrics / progress percentage
+
+------------------------------------------------------------------------------------------
+9) WALKTHROUGH (validate the flow)
+------------------------------------------------------------------------------------------
+Create sprint "Complete MVP"
+Create tasks and assign to Alice & Bob
+Add tasks to sprint
+Alice moves two tasks to INPROGRESS (allowed)
+Third INPROGRESS for Alice would be rejected
+Delayed tasks are detected by comparing endTime with current time
+
+==========================================================================================
+CODE STARTS BELOW
+==========================================================================================
+*/
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -152,7 +312,7 @@ public class SprintPlanner {
 
     public static void main(String[] args) {
         SprintPlanner planner = new SprintPlanner();
-        
+
         // Users
         User alice = new User("Alice");
         User bob = new User("Bob");

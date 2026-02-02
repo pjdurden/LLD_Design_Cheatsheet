@@ -1,3 +1,179 @@
+/*
+======================== LLD DESIGN INTERVIEW SCRIPT (SOCIAL MEDIA FEED SYSTEM) ========================
+
+------------------------------------------------------------------------------------------
+1) CLARIFYING REQUIREMENTS (what I ask first)
+------------------------------------------------------------------------------------------
+"Before I design, I’ll clarify what features are required in MVP."
+
+Questions I ask:
+1. Core features needed?
+   - Follow / Unfollow ✅
+   - Create post ✅
+   - Delete post ✅
+   - View personal feed ✅
+   - Pagination ✅
+2. Feed rules:
+   - Feed contains posts from following users only? ✅
+   - Should own posts appear as well? (not included currently)
+3. Feed limits:
+   - Top 10 latest posts only? ✅
+   - Pagination is pageNumber based? ✅
+4. Data volume:
+   - small-scale in-memory acceptable for LLD? ✅
+   - large-scale (fanout-on-write vs fanout-on-read)? (discussion only)
+5. Concurrency:
+   - multiple users posting simultaneously? (not thread-safe currently, can improve)
+6. Post type:
+   - Only text post ID? ✅ (postId + timestamp)
+   - likes/comments/media? ❌ (out of scope)
+
+Assumptions in this implementation:
+- In-memory data structures (HashMap)
+- Users auto-created when follow() is called
+- Feed is computed at read time (fanout-on-read)
+- Sorting by timestamp descending
+- Pagination uses fixed page size = 10
+
+------------------------------------------------------------------------------------------
+2) REQUIREMENTS
+------------------------------------------------------------------------------------------
+Functional Requirements:
+- User follows another user
+- User unfollows another user
+- User creates a post
+- User deletes a post
+- Fetch news feed for a user (latest posts from followees)
+- Fetch paginated feed (pageNumber)
+
+Non-Functional Requirements:
+- Fast feed retrieval for small-medium datasets
+- Extensible for likes, comments, retweets, hashtags
+- Maintainable separation of services: User, Post, Feed
+- Deterministic ordering using timestamps
+
+------------------------------------------------------------------------------------------
+3) IDENTIFY ENTITIES (core classes)
+------------------------------------------------------------------------------------------
+User
+Post
+
+Services (interfaces):
+UserService
+PostService
+FeedService
+
+Implementations:
+UserServiceImpl
+PostServiceImpl
+FeedServiceImpl
+
+------------------------------------------------------------------------------------------
+4) RELATIONSHIPS (has-a / is-a)
+------------------------------------------------------------------------------------------
+User has Set<Integer> following (followee IDs)
+
+Post has:
+- postId
+- userId (author)
+- timestamp
+
+UserServiceImpl has Map<userId, User>
+PostServiceImpl has:
+- Map<postId, Post>
+- Map<userId, List<postId>> userPostsMap
+
+FeedServiceImpl depends on:
+- UserService (to get following list)
+- PostService (to fetch posts and timestamps)
+
+------------------------------------------------------------------------------------------
+5) DESIGN CHOICES / PATTERNS DISCUSSED
+------------------------------------------------------------------------------------------
+Interface-based design:
+- Services are interfaces => easier to swap implementations later
+- Helps testing and extensibility
+
+Dependency Injection (manual):
+- FeedServiceImpl receives userService + postService in constructor
+
+Feed generation strategy:
+- Fanout-on-read (calculate feed during getNewsFeed call)
+  Works well for small scale
+  (At large scale we may precompute feeds: fanout-on-write)
+
+Sorting:
+- Sort feed postIds by timestamp descending using PostService.getPostById()
+
+Pagination:
+- Simple slicing with pageSize = 10
+
+------------------------------------------------------------------------------------------
+6) CORE APIs (method signatures)
+------------------------------------------------------------------------------------------
+UserService:
+- follow(followerId, followeeId)
+- unfollow(followerId, followeeId)
+- getFollowers(userId)  // NOTE: naming is misleading; actually returns "following"
+
+PostService:
+- createPost(userId, postId)
+- deletePost(postId)
+- getUserPosts(userId)
+- getPostById(postId)
+
+FeedService:
+- getNewsFeed(userId)
+- getNewsFeedPaginated(userId, pageNumber)
+
+------------------------------------------------------------------------------------------
+7) EDGE CASES I DISCUSS (and handled partially)
+------------------------------------------------------------------------------------------
+- Follow creates users if they don't exist ✅
+- Unfollow safe if follower doesn't exist ✅
+- Deleting missing post -> safe no-op ✅
+- Feed for user with no followings -> empty feed ✅
+- Pagination out of range -> returns empty list ✅
+- Feed ordering when timestamps equal -> might be unstable (could add postId tie-break)
+
+Limitations (important to mention in interview):
+- Not thread-safe: HashMap + ArrayList not safe under concurrency ❌
+- getFollowers() name is incorrect (returns following) ❌
+- Doesn't include user’s own posts in feed ❌
+- Sorting requires fetching Post objects repeatedly (could be optimized)
+
+------------------------------------------------------------------------------------------
+8) EXTENSIBILITY (how we scale this design)
+------------------------------------------------------------------------------------------
+Improvements:
+- Rename getFollowers() -> getFollowing()
+- Use ConcurrentHashMap + CopyOnWriteArrayList / synchronized lists
+- Add max feed size parameter
+- Add post content and metadata (text/media)
+- Introduce LikeService, CommentService
+- Optimize feed:
+  - Use priority queue merge of latest posts per followee
+  - Or store per-user recent posts as deque
+- At scale:
+  - Fanout-on-write: push postId into followers' timelines
+  - Cache feeds per user
+
+------------------------------------------------------------------------------------------
+9) WALKTHROUGH (example flow)
+------------------------------------------------------------------------------------------
+User1 follows User2 and User3
+User2 and User3 create posts
+User1 requests feed:
+- system fetches followees [2,3]
+- collects their posts [101,102,201,202]
+- sorts by timestamp desc
+- returns top 10
+
+==========================================================================================
+CODE STARTS BELOW
+==========================================================================================
+*/
+
 import java.util.*;
 
 public class SocialMediaLLD {
@@ -207,5 +383,4 @@ public class SocialMediaLLD {
         System.out.println("User 1's following after unfollowing User 3: " + userService.getFollowers(1)); // Expected: [2]
         System.out.println("User 1's news feed after unfollowing User 3: " + feedService.getNewsFeed(1)); // Expected: [102]
     }
-
 }

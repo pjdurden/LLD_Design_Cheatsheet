@@ -1,22 +1,176 @@
+/*
+======================== LLD DESIGN INTERVIEW SCRIPT (RIDE SHARING SYSTEM) ========================
+
+------------------------------------------------------------------------------------------
+1) CLARIFYING REQUIREMENTS (what I ask first)
+------------------------------------------------------------------------------------------
+"Before I start designing, I’ll clarify scope and rules to avoid wrong assumptions."
+
+Questions I ask:
+1. Core features required?
+   - User onboarding ✅ (users exist in this code)
+   - Add vehicle ✅
+   - Offer ride ✅
+   - Search rides ✅
+   - Book seats ✅
+2. Ride search:
+   - Only direct rides OR transit rides also? ✅ (both exist here)
+   - Sorting preference needed? ✅ (earliest ending / lowest duration)
+3. Booking rules:
+   - Can passenger book multiple rides? ✅
+   - Can passenger cancel booking? ❌ (not implemented)
+   - Can driver cancel ride? ❌
+4. Seats & capacity:
+   - Should booking reduce available seats immediately? ✅
+   - Prevent overbooking under concurrency? (not handled fully)
+5. Pricing & payments required? ❌ (out of scope)
+6. Matching / location:
+   - Exact match origin/destination strings? ✅ (simple matching)
+   - Or geo-based near-by pickup/drop? ❌ (out of scope)
+
+Assumptions in this implementation:
+- In-memory system (lists)
+- Origins/destinations are exact string match
+- Ride booking is seat-based only (no payment confirmation)
+- No ride status states (REQUESTED/CONFIRMED/COMPLETED)
+- No concurrency handling for booking
+
+------------------------------------------------------------------------------------------
+2) REQUIREMENTS
+------------------------------------------------------------------------------------------
+Functional Requirements:
+- User can register (pre-created here)
+- User can add vehicles
+- Driver can offer rides with seats + time + duration
+- Passenger can search rides from origin to destination
+- Passenger can book seats if available
+- System supports searching by preference:
+  - earliest_ending_ride (implemented as startTime sort)
+  - lowest_duration_ride (duration sort)
+- Support transit rides (multi-hop) using DFS
+
+Non-Functional Requirements:
+- Extensible (new preferences, cancellation, ride statuses, payments)
+- Maintainable separation of concerns:
+  - VehicleService manages vehicles
+  - RideService manages rides and search
+- Correctness for seat availability (needs locking in real world)
+
+------------------------------------------------------------------------------------------
+3) IDENTIFY ENTITIES (core classes)
+------------------------------------------------------------------------------------------
+User
+Vehicle
+Ride
+RideRequest
+RideService
+VehicleService
+
+(Helper concepts)
+Preference string (could become Enum)
+Transit search implemented using DFS
+
+------------------------------------------------------------------------------------------
+4) RELATIONSHIPS (has-a / is-a)
+------------------------------------------------------------------------------------------
+User has:
+- List<Vehicle> vehicles
+- List<Ride> offeredRides
+- List<RideRequest> takenRides
+
+Vehicle has:
+- owner(User)
+- name + registrationNumber
+
+Ride has:
+- driver(User)
+- vehicle(Vehicle)
+- origin/destination
+- startTime + duration
+- availableSeats
+
+RideRequest has:
+- passenger(User)
+- origin/destination
+- seatsRequired + preference
+
+RideService has:
+- List<Ride> rides (in-memory store)
+
+VehicleService has:
+- List<Vehicle> vehicles
+
+------------------------------------------------------------------------------------------
+5) DESIGN CHOICES / PATTERNS DISCUSSED
+------------------------------------------------------------------------------------------
+Service Layer design:
+- RideService encapsulates offerRide + search logic
+- VehicleService encapsulates vehicle creation and association to user
+
+Preference-based sorting:
+- Strategy Pattern can be introduced later:
+  - RideSelectionStrategy (earliest ending / shortest duration / cheapest / best rating)
+Current implementation uses simple if-else checks.
+
+Transit rides:
+- DFS approach finds all possible paths from origin -> destination using existing rides
+(Works for small data; may explode for large graphs)
+
+------------------------------------------------------------------------------------------
+6) CORE APIs (entry points)
+------------------------------------------------------------------------------------------
+VehicleService.addVehicle(owner, name, registrationNumber) -> Vehicle
+
+RideService.offerRide(driver, vehicle, origin, destination, startTime, duration, availableSeats) -> Ride
+RideService.searchRides(origin, destination, preference) -> List<Ride>
+RideService.findTransitRides(origin, destination) -> List<List<Ride>>
+
+Ride.bookSeats(seatsRequired) -> boolean
+
+User.offerRide(ride)
+User.takeRide(rideRequest)
+
+------------------------------------------------------------------------------------------
+7) EDGE CASES I DISCUSS (and what’s missing currently)
+------------------------------------------------------------------------------------------
+- Booking more seats than available -> returns false ✅
+- Multiple users booking simultaneously -> race condition ❌
+  (availableSeats updates should be synchronized/atomic)
+- Search when no matching ride exists -> returns empty list ✅
+- Preference string invalid -> no sorting applied ✅
+- Transit ride cycles -> prevented using visited set ✅
+- Cancel booking / refund seats -> not implemented ❌
+- Ride states (ACTIVE/CANCELLED/COMPLETED) -> not implemented ❌
+
+------------------------------------------------------------------------------------------
+8) EXTENSIBILITY (future improvements)
+------------------------------------------------------------------------------------------
+- Add RideStatus enum: ACTIVE, FULL, COMPLETED, CANCELLED
+- Add booking entity with status:
+  - REQUESTED -> CONFIRMED -> CANCELLED -> COMPLETED
+- Add concurrency safety for booking:
+  - synchronized bookSeats() or AtomicInteger for seats
+- Introduce Strategy pattern for ride selection preferences
+- Replace string origin/destination with location coordinates (geo search)
+- Add rating system and driver matching logic
+- Add pricing + payments + wallet
+
+------------------------------------------------------------------------------------------
+9) WALKTHROUGH (validate the flow)
+------------------------------------------------------------------------------------------
+Driver offers ride Bangalore -> Mysore with 3 seats
+Passenger searches rides Bangalore -> Mysore sorted by preference
+Passenger selects ride and books 2 seats
+System reduces available seats and stores taken ride request under passenger
+
+==========================================================================================
+CODE STARTS BELOW
+==========================================================================================
+*/
+
 import java.util.*;
 
 public class ride_sharing {
-    // Design a ride sharing application :
-    // Driver can publish a ride
-    // Rider can search a ride based on strategies such as shortest, fastest
-    // Rider can select a ride
-    // Bonus
-    // show all rides taken and published by a user    
-
-    // user can be both rider and publisher, ok
-    // user - details , roletype , ridestaken , ridesgiven , ridesgoingon , vehicles
-    // vehicle - owner name , vehicle name , vehicle number
-    // rides , 
-    // ride - src , dst , driver , list<riders>
-    // bfs like multiple rides 
-    // RideShare - list<Users> , list<Rides> , create_user(user details) , create_vehicle (User , vehicledetails) , 
-    // offer_ride(driver , src , dst , seats , name , vehicle ) , select_ride , 
-
     private static class User {
         private int id;
         private String name;
@@ -222,7 +376,6 @@ public class ride_sharing {
         }
     }
 
-
     public static void main(String[] args) {
         // Create users
         User john = new User(1, "John", "M", 26);
@@ -277,5 +430,4 @@ public class ride_sharing {
             }
         }
     }
-
 }

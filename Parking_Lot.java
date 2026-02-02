@@ -1,102 +1,115 @@
-/*
-🚗 Parking Lot Problem Statement
+/* 
+------------------------------------------------------------------------------------------
+1) PROBLEM UNDERSTANDING (I say this first)
+------------------------------------------------------------------------------------------
+"Design a Parking Lot system where vehicles enter, park, get a ticket, and then exit by paying a fee."
 
-You are required to design and implement a Parking Lot system.
+------------------------------------------------------------------------------------------
+2) CLARIFYING QUESTIONS (1-2 mins)
+------------------------------------------------------------------------------------------
+I will ask:
+1. Vehicle types allowed? (CAR/BIKE/TRUCK)
+2. Multiple floors? (Yes)
+3. Spot types fixed to vehicle type? (Bike goes to BikeSpot etc.)
+4. Allocation rule? (Nearest available / lowest floor lowest number)
+5. Fee calculation rule? (Hourly per vehicle type)
+6. Is payment integration required? (No, just return fee)
+7. Persistence required? (No, in-memory fine for interview)
 
-Functional Requirements
+Assumptions I'm making:
+- One vehicle occupies one spot
+- One ticket maps to exactly one parked vehicle
+- We generate tickets sequentially
+- Duration based on system time (millis)
+- No reservation / pre-booking
 
-The parking lot should have multiple floors, each with a fixed number of parking slots.
+------------------------------------------------------------------------------------------
+3) REQUIREMENTS
+------------------------------------------------------------------------------------------
+Functional Requirements:
+- Park a vehicle -> assign suitable available spot -> create ticket
+- Unpark using ticket -> calculate fee -> free the spot
+- Display status / availability of parking lot
 
-Each slot can be of one type: Car, Bike, Truck (or extensible to more vehicle types).
+Non-Functional Requirements:
+- Extensible: add new vehicle types, new pricing rules, new allocation strategies
+- Maintainable: clean separation of concerns
+- Correctness: consistent mapping ticket -> spot
+- (Optional) Concurrency safe (not implemented fully here but discussable)
 
-A vehicle can enter the parking lot and should be assigned the nearest available slot based on some strategy (e.g., lowest floor, lowest slot number).
+------------------------------------------------------------------------------------------
+4) IDENTIFY ENTITIES (NOUNS)
+------------------------------------------------------------------------------------------
+Vehicle (Car/Bike/Truck)
+ParkingSpot (CarSpot/BikeSpot/TruckSpot)
+Floor
+ParkingLot
+Ticket
+Strategies:
+- SlotAllocationStrategy
+- FeeStrategy
 
-A vehicle can exit the parking lot, which frees up the slot.
+------------------------------------------------------------------------------------------
+5) RELATIONSHIPS
+------------------------------------------------------------------------------------------
+ParkingLot has Floors
+Floor has ParkingSpots
+ParkingSpot has Vehicle (when occupied)
+Ticket has Vehicle + (floorNumber, spotNumber) + time info
 
-The system should generate a ticket when a vehicle enters and assign it to a slot.
+Vehicle is-a Car/Bike/Truck (Inheritance)
+ParkingSpot is-a CarSpot/BikeSpot/TruckSpot (Inheritance)
 
-On exit, the system should compute the parking fee based on duration and vehicle type.
+------------------------------------------------------------------------------------------
+6) DESIGN PATTERNS USED (only where needed)
+------------------------------------------------------------------------------------------
+Strategy Pattern:
+- SlotAllocationStrategy => can swap allocation rules without changing ParkingLot
+- FeeStrategy => can swap pricing models (hourly/daily/surge)
 
-Support APIs like:
+Singleton Pattern:
+- ParkingLot as singleton (single parking lot instance)
+(Interview note: Singleton can be replaced by DI in production)
 
-parkVehicle(vehicle) → returns Ticket
+------------------------------------------------------------------------------------------
+7) CORE APIs (what I'll expose)
+------------------------------------------------------------------------------------------
+ParkingLot.init(...)
+ParkingLot.parkVehicle(vehicle) -> Ticket
+ParkingLot.unparkVehicle(ticketId) -> fee
+ParkingLot.displayStatus()
+ParkingLot.displayAvailableSlots()
 
-unparkVehicle(ticketId) → returns Fee and frees slot
+Strategies:
+SlotAllocationStrategy.findSlot(floors, vehicle) -> ParkingSpot
+FeeStrategy.calculateFee(durationMillis, vehicleType) -> double
 
-getAvailableSlots(vehicleType) → returns available slot count per floor
+------------------------------------------------------------------------------------------
+8) EDGE CASES (say them explicitly)
+------------------------------------------------------------------------------------------
+- No available spot => return null / print message
+- Invalid ticket during exit => return 0 / error
+- Double unpark => invalid ticket after removal
+- Concurrency: two vehicles competing for same spot (needs synchronization/locking)
+- Vehicle type mismatch with spot type => prevented by canPark()
 
-displayStatus() → prints current occupancy
+------------------------------------------------------------------------------------------
+9) EXTENSIBILITY DISCUSSION (what can change tomorrow)
+------------------------------------------------------------------------------------------
+- Add new allocation strategies: NearestToEntry, Random, Handicap-first, EV-first
+- Add pricing rules: daily cap, weekend pricing, dynamic surge, subscription passes
+- Add more metadata: entry gate, exit gate, ticket QR, payment status
 
-Constraints
+------------------------------------------------------------------------------------------
+10) FLOW WALKTHROUGH (final validation)
+------------------------------------------------------------------------------------------
+Example:
+Vehicle enters -> parkVehicle() -> allocationStrategy finds spot -> spot.park(vehicle) -> Ticket created
+Vehicle exits -> unparkVehicle(ticketId) -> spot.unpark() -> calculate fee -> remove active ticket
 
-Parking lot size is configurable at the start (e.g., N floors, M slots per floor).
-
-Different vehicle types may have different slot requirements (Truck needs a bigger slot than a Bike).
-
-Assume basic time tracking for fee calculation (don’t need actual clock API, can mock).
-
-The system should be extensible – e.g., tomorrow if you add ElectricCar needing charging slots, it should be possible without rewriting everything.
-
-Example
-Initialize ParkingLot with 2 floors, 6 slots each.
-Slot distribution: [Truck, Bike, Car, Car, Bike, Car] on each floor.
-
-parkVehicle(Car KA-01-1234)
--> Ticket issued: Floor 1, Slot 3
-
-parkVehicle(Bike KA-05-4321)
--> Ticket issued: Floor 1, Slot 2
-
-unparkVehicle(ticketId=1)
--> Vehicle KA-01-1234 exited. Fee = Rs. 20
-
-
-👉 Evaluation Criteria
-
-OOP design (classes like ParkingLot, Floor, Slot, Vehicle, Ticket, FeeCalculator).
-
-Clean code and extensibility (new vehicle types, new fee strategies).
-
-Efficient slot allocation strategy.
-
-Use of design patterns (Factory for vehicle, Strategy for fee, Singleton for parking lot if required).
-
-Parking Lot -> n * Floors ( Singleton )
-Floor -> n * parking spots
-Parking spot -> only 1 type vehicle , Ticket(TimeStamp ) , FeeCalculator ( created at startup )
-LFLN -> lowest floor lowest number (Strategy)
-FeeType -> per hour , per day , vehicle type ( Static method , just gives a number back)
-Vehicle -> VehicleType (Enum) , VehicleNumber ( Multiple objects made during runtime)
-
-parkVehicle -> requires vehicle object -> finds Parking spot -> park vehicle(spot occupied) -> return Ticket
-unparkVehicle -> requires ticket object -> finds Parking spot -> unpark vehicle(spot free) -> return Fee
-displayAvailableSlots -> iterate through all floors -> iterate through all parking spots -> count free spots of that vehicle type
-displayStatus -> iterate through all floors -> iterate through all parking spots -> print status of each spot
-
-PARKING LOT DESIGN  
-
-VehicleType -> Enum ( Car , Bike , Truck , ElectricCar )
-    -> Car ( class )
-    -> Bike ( class )
-    -> Truck ( class )
-    -> ElectricCar ( class )
-
--> Vehicle ( abstract class ) , VehicleNumber ( String ) , VehicleType ( Enum )
-
-ParkingSpotType -> Enum ( Car , Bike , Truck , ElectricCar )
-    -> CarSpot ( class )
-    -> BikeSpot ( class )
-    -> TruckSpot ( class )
-    -> ElectricCarSpot ( class )
-
--> ParkingSpot ( abstract class ) , SpotNumber ( int ) , VehicleType ( Enum ) Ticket ( class ) , TicketId ( int ) , VehicleNumber ( String ) , isOccupied ( boolean ) , parkVehicle() , unparkVehicle()
-
--> Floor ( class ) , FloorNumber ( int ) , List<ParkingSpot> ( List of parking spots ) , parkVehicle() , unparkVehicle() , getAvailableSlots() , displayStatus()
-
--> ParkingLot ( class ) , List<Floor> ( List of floors ) , parkVehicle() , unparkVehicle() , displayAvailableSlots() , displayStatus()
-
--> FeeCalculator ( class ) , calculateFee() ( static method ) , FeeType ( Enum ) , VehicleType ( Enum ) , RateCard ( Map<VehicleType, Rate> )
-
+==========================================================================================
+CODE STARTS BELOW
+==========================================================================================
 */
 
 import java.util.*;
