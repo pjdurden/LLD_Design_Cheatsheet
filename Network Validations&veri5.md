@@ -1,5 +1,8 @@
-Network Validations
+# Network Validations
 
+## Architecture
+
+```text
 Clients/Acquirers        Ops/Admin UI (Angular)
       |                           |
       v                           v
@@ -27,6 +30,7 @@ Clients/Acquirers        Ops/Admin UI (Angular)
                                 |
                                 v
                        Splunk/Grafana (obs)
+
 
 Scope & Rationale
 
