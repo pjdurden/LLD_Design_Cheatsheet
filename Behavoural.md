@@ -101,3 +101,24 @@
 - **Ambiguity / External dependency** → Story 4  
 - **Process / Engineering excellence** → Story 5  
 - **Vision / 0→1 / Entrepreneurship** → Story 6  
+
+
+## EM Team Fit – Top 6 Questions
+
+1) **Why eBay? Why eBay Live specifically?**
+   - Motivation + understanding of live commerce + trust/community angle.
+
+2) **Tell me about your leadership style. How do you run a team day-to-day?**
+   - Ownership, execution rhythm, quality bar, communication.
+
+3) **How do you work with Product Managers and handle disagreements on scope/timelines?**
+   - Tradeoffs, alignment, decision-making.
+
+4) **Tell me about a time you handled a high-severity incident or production outage.**
+   - Calm under pressure, debugging approach, prevention.
+
+5) **How do you ensure quality and reliability while moving fast?**
+   - Guardrails: monitoring, feature flags, canaries, testing strategy.
+
+6) **How do you grow engineers (mentoring) and handle underperformance?**
+   - Coaching, feedback loops, expectations, improvement plan.
