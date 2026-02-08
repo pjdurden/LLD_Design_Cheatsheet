@@ -1,2 +1,2 @@
 # LLD_Design_Cheatsheet
-Codes for LLD Design
+Cheatsheet for HLD and LLD problems
