@@ -70,7 +70,7 @@
 
 ## API Design
 - **REST basics**: Use correct HTTP verbs, resource-oriented URIs.
-- **Pagination**: Cursor-based preferred for large datasets.
+- **Pagination**: Cursor-based preferred for large datasets. - 
 - **Filtering/Sorting**: Query params; validate allowed fields.
 - **Versioning**: `/v1/...` or headers to support backward compatibility.
 - **Idempotency keys**: Required for payment/order creation endpoints.

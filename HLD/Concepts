@@ -1,0 +1,142 @@
+
+---
+
+# Common System Design Patterns
+
+## 1. Pushing Real-Time Updates
+
+* **Long Polling:** Unlike typical short polling, the connection is left open until a timeout occurs or new data is received. Use this as a starting point before moving to advanced protocols.
+* **SSE (Server-Sent Events):** A unidirectional persistent connection where the server pushes data to the client.
+* **WebSockets:** A full-duplex, bi-directional persistent connection for real-time interaction.
+
+## 2. Long-Running Tasks
+
+* **Synchronous:** Use only for short-lived tasks.
+* **Asynchronous (Queue-based):** Server accepts the request, sends an acknowledgement, and processes the task in the background. The client periodically checks for status (e.g., file exports, video conversion).
+* **Webhooks:** Server acknowledges the request, and a worker contacts the client’s provided URL with the result upon completion.
+* **Progress Tracking:** Use persistent connections like WebSockets or SSE to show real-time completion rates.
+
+## 3. Contention
+
+Occurs when multiple users access the same resource simultaneously, leading to race conditions and data consistency issues.
+
+* **Solutions:**
+* **Locking:** Optimistic (version checks) or Pessimistic (row/table level).
+* **Distributed Locks:** Used for coordination across distributed systems (e.g., Redis Redlock).
+* **Queue-based Serialization:** Funneling requests through a single-threaded queue.
+
+
+* **Key Insight:** Databases are built to handle contention; avoid distributing related data over multiple databases to simplify this.
+
+## 4. Scaling Reads
+
+Typical read/write ratios are 10:1, often reaching 100:1.
+
+1. **Indexing & Denormalization:** Start here. Note that denormalization speeds up reads but makes updates complex.
+2. **Read Replicas:** Offload read traffic to dedicated replicas.
+3. **Caching & CDNs:** Manage cache invalidation, replication lag, and "hot data" (frequently accessed items).
+
+## 5. Scaling Writes
+
+* **Sharding:** Distribute data over multiple servers based on a shard key.
+* **Vertical Partitioning:** Separating tables/data based on functional types.
+* **Burst Handling:** Use queues to buffer temporary spikes in traffic.
+* **Load Shedding:** Ignore non-critical writes during peak loads to prevent system blackouts.
+* **Batching:** Reduces network overhead and optimizes disk I/O by minimizing transaction locks.
+
+## 6. Handling Large Blobs
+
+### Pre-signed URLs
+
+Instead of transporting a blob through the application server, the app validates the request and provides a **Pre-signed URL** for the client to upload directly to storage (e.g., S3).
+
+### CDN-Backed Uploads
+
+* **Proximity:** Users upload to a CDN Edge location geographically closer to them.
+* **High-Speed Backbone:** The CDN uses its optimized private network to move data to the origin bucket.
+* **Resumable Uploads:** Uses **chunking** to handle failures.
+* **Streaming:** The CDN starts uploading chunks to the bucket as soon as it receives them from the client; it does not wait for the full file.
+
+## 7. Multi-Step Processes
+
+* **Orchestration:** A central "brain" (e.g., AWS Step Functions) coordinates services and manages logic.
+* **Event Sourcing (Choreography):** Services communicate via events; each service "shouts" to a queue when a task is done, triggering the next service.
+* **Durable Execution (Temporal):** Modern workflow engines where you write code as a script; the system checkpoints every line. If a crash occurs, it resumes exactly where it left off on a different worker.
+
+## 8. Proximity-Based Services
+
+Used by apps like Uber or Zepto to find the closest entities.
+
+* **Geospatial Indexes:** Use Redis (GeoHash) or Postgres (PostGIS).
+* **Scale Note:** Only necessary if indexing hundreds of thousands or millions of entries; for a few thousand, standard queries are often sufficient.
+
+---
+
+# Common Deep Dives
+
+### 1. Data Locality
+
+* **CDNs:** Use Edge locations for data that changes infrequently to reduce latency.
+
+### 2. Regional Partitioning
+
+* Divide data by geography (e.g., Northeast US, Western Europe) to keep data close to users and comply with local regulations.
+
+### 3. Reliability Patterns
+
+* **Exponential Backoff:** Gradually increasing wait times between retries.
+* **Idempotency:** Use idempotency keys to ensure a request is processed only once, even if retried.
+
+### 4. Circuit Breakers
+
+* Prevents cascading failures by stopping requests to a failing service once a failure threshold is hit.
+* **Use cases:** External API calls, database connections, and resource-heavy operations.
+
+---
+
+# API Patterns
+
+* **Pagination:** Prefer **Cursor-based** over Offset-based for stability and performance.
+* **Versioning:** Always version your APIs (e.g., `/v1/`).
+* **Security:** * **API Keys:** State stored on server.
+* **JWT:** State stored in the token; allows independent verification without database calls.
+
+
+* **Throttling:** Implement rate limits per user, per IP, or per specific endpoint.
+
+---
+
+# Schema Design & Caching
+
+### Schema Design Flow
+
+1. Determine Database Type (SQL vs NoSQL).
+2. List columns for functional requirements.
+3. Specify Primary/Foreign keys.
+4. Identify indexing needs.
+5. Evaluate Denormalization for performance.
+6. Determine if Sharding is needed (choose a high-cardinality shard key).
+
+### Caching Strategy
+
+* **Cache-Aside:** Application checks cache; if it's a miss, it reads from DB and updates cache.
+* **Write-Through:** Application writes to cache, which then updates the DB.
+* **Eviction:** Use **LRU (Least Recently Used)** as the default.
+* **Hot Keys:** Use probabilistic early expiration to prevent "Thundering Herd" issues when a popular key expires.
+
+### Sharding Mechanics
+
+* **Shard Key:** Must have high cardinality and even distribution.
+* **Default:** Use **Hash-based sharding**.
+* **Growth:** Use **Consistent Hashing** (Hash Ring) to minimize data movement when adding new shards.
+
+---
+
+# CAP Theorem
+
+You can only pick **two** in a distributed system:
+
+* **CP (Consistency/Partition Tolerance):** Financial systems, inventory, ticket booking.
+* **AP (Availability/Partition Tolerance):** Social media feeds, Netflix, product reviews.
+
+---
