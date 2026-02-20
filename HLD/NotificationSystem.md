@@ -154,7 +154,7 @@ Use `template_id` + optional version to avoid breaking older jobs.
 
 ---
 
-# 8. Detailed Architecture Diagram (ASCII)
+# 8. Detailed Architecture Diagram
 
 ```
                     +----------------+
